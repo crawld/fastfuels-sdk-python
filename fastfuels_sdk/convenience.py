@@ -5,6 +5,7 @@ fastfuels_sdk/convenience.py
 # Core imports
 from __future__ import annotations
 from pathlib import Path
+import json
 
 # Internal imports
 from fastfuels_sdk.exports import Export
@@ -542,7 +543,18 @@ def export_roi(
     if progress is not None:
         progress(0, status, **kwargs)
 
-    domain = Domain.from_geodataframe(roi)
+    # Older versions of geopandas do not add the crs in the geojson
+    geojson = json.loads(roi.to_json())
+    if 'crs' not in geojson:
+        geojson['crs'] = {
+            'type': 'name',
+            'properties': {
+                'name': 'urn:ogc:def:crs:EPSG::' + str(roi.crs.to_epsg())
+             }
+         }
+        domain = Domain.from_geojson(geojson)
+    else:
+        domain = Domain.from_geodataframe(roi)
 
     if progress is not None:
         done_steps += 1
@@ -632,8 +644,8 @@ def export_roi(
     if verbose:
         print(status)
     if progress is not None:
-        progress(done_steps / total_steps, status)
-    surface_grid = _configure_surface_builder(domain.id, merged_surface_config, **kwargs)
+        progress(done_steps / total_steps, status, **kwargs)
+    surface_grid = _configure_surface_builder(domain.id, merged_surface_config)
 
     # Create tree grid using configuration
     tree_inventory.wait_until_completed(verbose=verbose)
