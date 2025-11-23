@@ -5,6 +5,7 @@ fastfuels_sdk/convenience.py
 # Core imports
 from __future__ import annotations
 from pathlib import Path
+import json
 
 # Internal imports
 from fastfuels_sdk.exports import Export
