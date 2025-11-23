@@ -22,6 +22,7 @@ from fastfuels_sdk.grids import (
 from geopandas import GeoDataFrame
 import copy
 from typing import Optional, Dict, Any
+from collections.abc import Callable
 
 
 def _merge_config(
@@ -213,6 +214,39 @@ def _configure_surface_builder(domain_id: str, config: Dict[str, Any]):
                 feature_masks=fuel_moisture_config.get("featureMasks", []),
             )
 
+    # Process FBFM configuration
+    if "FBFM" in config:
+        fbfm_config = config["FBFM"]
+
+        builder = builder.with_fbfm_from_landfire(
+            product=fbfm_config.get('product', 'FBFM40'),
+            version=fbfm_config.get('version', '2022'),
+            interpolation_method=fbfm_config.get('interpolationMethod', 'nearest'),
+            feature_masks=fbfm_config.get('featureMasks', []),
+            remove_non_burnable=fbfm_config.get('removeNonBurnable', [])
+        )
+
+    # Process SAVR configuration
+    if "SAVR" in config:
+        savr_config = config["SAVR"]
+        source = savr_config.get("source")
+
+        if source == "LANDFIRE":
+            builder = builder.with_savr_from_landfire(
+                product=savr_config.get('product', 'FBFM40'),
+                version=savr_config.get('version', '2022'),
+                interpolation_method=savr_config.get('interpolationMethod', 'nearest'),
+                groups=savr_config.get('groups', []),
+                feature_masks=savr_config.get('featureMasks', []),
+                remove_non_burnable=savr_config.get('removeNonBurnable', [])
+            )
+        
+        elif source == "uniform":
+            builder = builder.with_uniform_savr(
+                value=savr_config.get('value'),
+                feature_masks=savr_config.get('featureMasks', []),
+            )
+
     return builder.build()
 
 
@@ -248,6 +282,14 @@ def _configure_tree_builder(domain_id: str, config: Dict[str, Any]):
             value = fuel_moisture_config.get("value")
             builder = builder.with_uniform_fuel_moisture(value=value)
 
+    # Process SAVR configuration
+    if "SAVR" in config:
+        builder = builder.with_savr_from_tree_inventory()
+
+    # Process SPCD configuration
+    if "SPCD" in config:
+        builder = builder.with_spcd_from_tree_inventory()
+
     return builder.build()
 
 
@@ -261,6 +303,9 @@ def export_roi(
     tree_config: Optional[Dict[str, Any]] = None,
     features_config: Optional[Dict[str, Any]] = None,
     tree_inventory_config: Optional[Dict[str, Any]] = None,
+    export_tree_inventory_path: Optional[Path | str] = None,
+    export_tree_inventory_format: Optional[Literal["csv", "parquet", "geojson"]] = "csv",
+    progress: Optional[Callable[float, str], None] = None,
     **kwargs,
 ) -> Export:
     """Convenience function to export a region of interest (ROI) to various formats.
@@ -369,6 +414,18 @@ def export_roi(
                 "featureMasks": ["road", "water"]  # Features to mask out
             }
 
+    tree_inventory_export_path : Path or str, optional
+        File path where the tree inventory export will be saved. If None,
+        tree inventory not exported.
+    tree_inventory_export_format : str, optional
+        Format for the tree inventory export.
+
+    progress : function(float, str, **kwargs), optional
+        Function that is called throughout the export workflow. The first
+        argument is the amount done (0-1), second argument is a status
+        message, and any other keyword arguments passed to export_roi()
+        are passed to progress.
+
     Returns
     -------
     Export
@@ -427,6 +484,7 @@ def export_roi(
     6. Generates surface fuel grid from LANDFIRE data
     7. Creates tree canopy grid from inventory data
     8. Exports all grids in the specified format
+    9. Exports tree inventory in the specified format (if enabled)
 
     All configuration parameters support partial overrides - only specify the
     values you want to change from the defaults. The function will merge your
@@ -451,10 +509,44 @@ def export_roi(
         DEFAULT_TREE_INVENTORY_CONFIG, tree_inventory_config
     )
 
+    # Determine number of progress steps
+    if progress is not None:
+        # create domain, topography, surface grid, 
+        # tree inventory, tree grid, export
+        total_steps = 6
+
+        # create roads
+        if merged_features_config.get("createRoadFeatures", True):
+            total_steps += 1
+
+        # create water
+        if merged_features_config.get("createWaterFeatures", True):
+            total_steps += 1
+
+        # create feature grid
+        if merged_features_config.get("createRoadFeatures", True) or \
+           merged_features_config.get("createWaterFeatures", True):
+            total_steps += 1
+
+        # export tree inventory
+        if export_tree_inventory_path is not None:
+            total_steps += 1
+
+        done_steps = 0
+
+
     # Create a new domain for the ROI
+    status = "Creating domain from region of interest"
     if verbose:
-        print("Creating domain from region of interest")
+        print(status)
+    if progress is not None:
+        progress(0, status, **kwargs)
+
     domain = Domain.from_geodataframe(roi)
+
+    if progress is not None:
+        done_steps += 1
+        progress(done_steps / total_steps, "Created domain from region of interest", **kwargs)
 
     # Create road and water features based on configuration
     features = Features.from_domain_id(domain.id)
@@ -462,18 +554,29 @@ def export_roi(
     water_feature = None
 
     if merged_features_config.get("createRoadFeatures", True):
+        status = "Creating road features for the domain"
         if verbose:
-            print("Creating road features for the domain")
+            print(status)
+        if progress is not None:
+            progress(done_steps / total_steps, status, **kwargs)
+
         road_feature = features.create_road_feature_from_osm()
 
     if merged_features_config.get("createWaterFeatures", True):
+        status = "Creating water features for the domain"
         if verbose:
-            print("Creating water features for the domain")
+            print(status)
+        if progress is not None:
+            progress(done_steps / total_steps, status, **kwargs)
         water_feature = features.create_water_feature_from_osm()
 
     # Create topography grid using configuration
+    status = "Creating topography grid for the domain"
     if verbose:
-        print("Creating topography grid for the domain")
+        print(status)
+    if progress is not None:
+        progress(done_steps / total_steps, status, **kwargs)
+
     topography_grid = _configure_topography_builder(domain.id, merged_topography_config)
 
     # Create feature grid based on what features were created
@@ -481,13 +584,22 @@ def export_roi(
     if road_feature:
         road_feature.wait_until_completed(verbose=verbose)
         feature_attributes.append("road")
+        if progress is not None:
+            done_steps +=1
+            progress(done_steps / total_steps, "Created road features for the domain", **kwargs)
     if water_feature:
         water_feature.wait_until_completed(verbose=verbose)
         feature_attributes.append("water")
+        if progress is not None:
+            done_steps +=1
+            progress(done_steps / total_steps, "Created water features for the domain", **kwargs)
 
     if feature_attributes:
+        status = "Creating feature grid for the domain"
         if verbose:
-            print("Creating feature grid for the domain")
+            print(status)
+        if progress is not None:
+            progress(done_steps / total_steps, status, **kwargs)
         feature_grid = Grids.from_domain_id(domain.id).create_feature_grid(
             attributes=feature_attributes
         )
@@ -495,8 +607,11 @@ def export_roi(
         feature_grid = None
 
     # Create tree inventory using configuration
+    status = "Creating tree inventory for the domain"
     if verbose:
-        print("Creating tree inventory for the domain")
+        print(status)
+    if progress is not None:
+        progress(done_steps / total_steps, status, **kwargs)
     tree_inventory = Inventories.from_domain_id(
         domain.id
     ).create_tree_inventory_from_treemap(
@@ -509,29 +624,78 @@ def export_roi(
     # Create surface grid using configuration
     if feature_grid:
         feature_grid.wait_until_completed(verbose=verbose)
+        if progress is not None:
+            done_steps +=1
+            progress(done_steps / total_steps, "Created feature grid for the domain", **kwargs)
+
+    status = "Creating surface grid for the domain"
     if verbose:
-        print("Creating surface grid for the domain")
-    surface_grid = _configure_surface_builder(domain.id, merged_surface_config)
+        print(status)
+    if progress is not None:
+        progress(done_steps / total_steps, status)
+    surface_grid = _configure_surface_builder(domain.id, merged_surface_config, **kwargs)
 
     # Create tree grid using configuration
     tree_inventory.wait_until_completed(verbose=verbose)
+    if progress is not None:
+        done_steps +=1
+        progress(done_steps / total_steps, "Created tree inventory for the domain", **kwargs)
+
+    if export_tree_inventory_path is not None:
+        status = f"Exporting tree inventory {export_tree_inventory_format} data to {export_tree_inventory_path}"
+        if verbose:
+            print(status)
+        if progress is not None:
+            progress(done_steps / total_steps, status, **kwargs)
+        tree_inventory_export = tree_inventory.create_export(export_tree_inventory_format)
+
+    status = "Creating tree grid for the domain"
     if verbose:
-        print("Creating tree grid for the domain")
+        print(status)
+    if progress is not None:
+        progress(done_steps / total_steps, status, **kwargs)
+
     tree_grid = _configure_tree_builder(domain.id, merged_tree_config)
 
     # Create Export
     topography_grid.wait_until_completed(verbose=verbose)
+    if progress is not None:
+        done_steps +=1
+        progress(done_steps / total_steps, "Created topography grid for the domain", **kwargs)
     surface_grid.wait_until_completed(verbose=verbose)
+    if progress is not None:
+        done_steps +=1
+        progress(done_steps / total_steps, "Created surface grid the domain", **kwargs)
     tree_grid.wait_until_completed(verbose=verbose)
+    if progress is not None:
+        done_steps +=1
+        progress(done_steps / total_steps, "Created tree grid for the domain", **kwargs)
     export = Grids.from_domain_id(domain.id).create_export(export_format)
     export.wait_until_completed(verbose=verbose)
+    if progress is not None:
+        done_steps +=1
+        progress(done_steps / total_steps, "Created export for the domain", **kwargs)
 
     # Export the data to the specified path
+    status = f"Exporting {export_format} data to {export_path}"
     if verbose:
-        print(f"Exporting {export_format} data to {export_path}")
+        print(status)
+    if progress is not None:
+        progress(done_steps / total_steps, status, **kwargs)
     export_path = Path(export_path) if isinstance(export_path, str) else export_path
-    export.wait_until_completed(verbose=verbose, in_place=True)
+    # FIXME why is this second call necessary?
+    #export.wait_until_completed(verbose=verbose, in_place=True)
     export.to_file(export_path)
+
+    # Export tree inventory
+    if export_tree_inventory_path is not None:
+        tree_inventory_export.wait_until_completed()
+        tree_inventory_export_path = Path(export_tree_inventory_path) \
+            if isinstance(export_tree_inventory_path, str) else export_tree_inventory_path
+        tree_inventory_export.to_file(tree_inventory_export_path)
+
+    if progress is not None:
+        progress(1, "Done", **kwargs)
 
     return export
 
