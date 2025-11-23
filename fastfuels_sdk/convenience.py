@@ -544,9 +544,14 @@ def export_roi(
         progress(0, status, **kwargs)
 
     # Older versions of geopandas do not add the crs in the geojson
-    geojson = json.loads(df.to_json())
+    geojson = json.loads(gdf.to_json())
     if 'crs' not in geojson:
-        geojson['crs'] = {'type': 'name', 'properties': {'name': 'urn:ogc:def:crs:EPSG::5070'}}
+        geojson['crs'] = {
+            'type': 'name',
+            'properties': {
+                'name': 'urn:ogc:def:crs:EPSG::' + gdf.crs.to_epsg()
+             }
+         }
         domain = Domain.from_geojson(geojson)
     else:
         domain = Domain.from_geodataframe(roi)
