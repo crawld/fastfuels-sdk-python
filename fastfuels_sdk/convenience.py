@@ -645,7 +645,7 @@ def export_roi(
         print(status)
     if progress is not None:
         progress(done_steps / total_steps, status, **kwargs)
-    surface_grid = _configure_surface_builder(domain.id, merged_surface_config, **kwargs)
+    surface_grid = _configure_surface_builder(domain.id, merged_surface_config)
 
     # Create tree grid using configuration
     tree_inventory.wait_until_completed(verbose=verbose)
