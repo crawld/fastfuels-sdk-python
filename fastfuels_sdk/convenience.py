@@ -549,7 +549,7 @@ def export_roi(
         geojson['crs'] = {
             'type': 'name',
             'properties': {
-                'name': 'urn:ogc:def:crs:EPSG::' + roi.crs.to_epsg()
+                'name': 'urn:ogc:def:crs:EPSG::' + str(roi.crs.to_epsg())
              }
          }
         domain = Domain.from_geojson(geojson)
