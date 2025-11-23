@@ -542,7 +542,13 @@ def export_roi(
     if progress is not None:
         progress(0, status, **kwargs)
 
-    domain = Domain.from_geodataframe(roi)
+    # Older versions of geopandas do not add the crs in the geojson
+    geojson = json.loads(df.to_json())
+    if 'crs' not in geojson:
+        geojson['crs'] = {'type': 'name', 'properties': {'name': 'urn:ogc:def:crs:EPSG::5070'}}
+        domain = Domain.from_geojson(geojson)
+    else:
+        domain = Domain.from_geodataframe(roi)
 
     if progress is not None:
         done_steps += 1
