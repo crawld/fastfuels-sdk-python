@@ -595,6 +595,9 @@ class Inventories(InventoriesModel):
             - CROWN_FUEL_LOAD (Float): Pre-computed crown foliage biomass in kg.
               When provided, this value is used directly for voxelization instead
               of computing biomass from allometric equations. Must be >= 0.
+            - MAX_CROWN_RADIUS (Float): Measured maximum crown radius in meters.
+              When provided, the allometric crown profile shape is preserved but
+              scaled so the maximum radius matches this value. Must be > 0.
 
         Returns
         -------
