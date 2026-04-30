@@ -741,6 +741,174 @@ class TestIntegratedConfigurationSystem:
         assert result == mock_export
 
 
+class TestDisabledFeatureSanitization:
+    """Regression tests for issue #171: disabling road/water feature creation
+    must also strip those entries from any downstream featureMasks."""
+
+    def _setup_mocks(self, mock_domain, mock_features, mock_grids, mock_inventories):
+        mock_domain.from_geodataframe.return_value.id = "test-domain"
+
+        mock_features_instance = Mock()
+        mock_features.from_domain_id.return_value = mock_features_instance
+        mock_features_instance.create_road_feature_from_osm.return_value = Mock()
+        mock_features_instance.create_water_feature_from_osm.return_value = Mock()
+
+        mock_grids_instance = Mock()
+        mock_grids.from_domain_id.return_value = mock_grids_instance
+        mock_grids_instance.create_feature_grid.return_value = Mock()
+        mock_export = Mock()
+        mock_export.status = "completed"
+        mock_grids_instance.create_export.return_value = mock_export
+
+        mock_inventories_instance = Mock()
+        mock_inventories.from_domain_id.return_value = mock_inventories_instance
+        mock_inventories_instance.create_tree_inventory_from_treemap.return_value = (
+            Mock()
+        )
+        return mock_features_instance, mock_grids_instance, mock_inventories_instance
+
+    @patch("fastfuels_sdk.convenience.Domain")
+    @patch("fastfuels_sdk.convenience.Features")
+    @patch("fastfuels_sdk.convenience._configure_topography_builder")
+    @patch("fastfuels_sdk.convenience._configure_surface_builder")
+    @patch("fastfuels_sdk.convenience._configure_tree_builder")
+    @patch("fastfuels_sdk.convenience.Grids")
+    @patch("fastfuels_sdk.convenience.Inventories")
+    def test_both_features_disabled_strips_all_masks(
+        self,
+        mock_inventories,
+        mock_grids,
+        mock_configure_tree,
+        mock_configure_surface,
+        mock_configure_topo,
+        mock_features,
+        mock_domain,
+        sample_roi,
+    ):
+        """When both road and water features are disabled, every downstream
+        featureMasks list should be empty and no road/water feature creation
+        calls should be made."""
+        features_instance, _, inventories_instance = self._setup_mocks(
+            mock_domain, mock_features, mock_grids, mock_inventories
+        )
+        mock_configure_topo.return_value = Mock()
+        mock_configure_surface.return_value = Mock()
+        mock_configure_tree.return_value = Mock()
+
+        export_roi_to_quicfire(
+            sample_roi,
+            "/tmp/test",
+            features_config={
+                "createRoadFeatures": False,
+                "createWaterFeatures": False,
+            },
+        )
+
+        features_instance.create_road_feature_from_osm.assert_not_called()
+        features_instance.create_water_feature_from_osm.assert_not_called()
+
+        surface_config = mock_configure_surface.call_args[0][1]
+        assert surface_config["fuelLoad"]["featureMasks"] == []
+        assert surface_config["fuelDepth"]["featureMasks"] == []
+        assert surface_config["fuelMoisture"]["featureMasks"] == []
+
+        tree_inv_kwargs = (
+            inventories_instance.create_tree_inventory_from_treemap.call_args.kwargs
+        )
+        assert tree_inv_kwargs["feature_masks"] == []
+
+    @patch("fastfuels_sdk.convenience.Domain")
+    @patch("fastfuels_sdk.convenience.Features")
+    @patch("fastfuels_sdk.convenience._configure_topography_builder")
+    @patch("fastfuels_sdk.convenience._configure_surface_builder")
+    @patch("fastfuels_sdk.convenience._configure_tree_builder")
+    @patch("fastfuels_sdk.convenience.Grids")
+    @patch("fastfuels_sdk.convenience.Inventories")
+    def test_only_road_disabled_strips_road_keeps_water(
+        self,
+        mock_inventories,
+        mock_grids,
+        mock_configure_tree,
+        mock_configure_surface,
+        mock_configure_topo,
+        mock_features,
+        mock_domain,
+        sample_roi,
+    ):
+        features_instance, _, inventories_instance = self._setup_mocks(
+            mock_domain, mock_features, mock_grids, mock_inventories
+        )
+        mock_configure_topo.return_value = Mock()
+        mock_configure_surface.return_value = Mock()
+        mock_configure_tree.return_value = Mock()
+
+        export_roi_to_quicfire(
+            sample_roi,
+            "/tmp/test",
+            features_config={"createRoadFeatures": False},
+        )
+
+        features_instance.create_road_feature_from_osm.assert_not_called()
+        features_instance.create_water_feature_from_osm.assert_called_once()
+
+        surface_config = mock_configure_surface.call_args[0][1]
+        assert surface_config["fuelLoad"]["featureMasks"] == ["water"]
+        assert surface_config["fuelDepth"]["featureMasks"] == ["water"]
+        assert surface_config["fuelMoisture"]["featureMasks"] == ["water"]
+
+        tree_inv_kwargs = (
+            inventories_instance.create_tree_inventory_from_treemap.call_args.kwargs
+        )
+        assert tree_inv_kwargs["feature_masks"] == ["water"]
+
+    @patch("fastfuels_sdk.convenience.Domain")
+    @patch("fastfuels_sdk.convenience.Features")
+    @patch("fastfuels_sdk.convenience._configure_topography_builder")
+    @patch("fastfuels_sdk.convenience._configure_surface_builder")
+    @patch("fastfuels_sdk.convenience._configure_tree_builder")
+    @patch("fastfuels_sdk.convenience.Grids")
+    @patch("fastfuels_sdk.convenience.Inventories")
+    def test_disabled_feature_strips_user_supplied_masks(
+        self,
+        mock_inventories,
+        mock_grids,
+        mock_configure_tree,
+        mock_configure_surface,
+        mock_configure_topo,
+        mock_features,
+        mock_domain,
+        sample_roi,
+    ):
+        """User-supplied featureMasks should also be sanitized — it shouldn't
+        be possible to mask against a feature that won't be created."""
+        self._setup_mocks(mock_domain, mock_features, mock_grids, mock_inventories)
+        mock_configure_topo.return_value = Mock()
+        mock_configure_surface.return_value = Mock()
+        mock_configure_tree.return_value = Mock()
+
+        export_roi_to_quicfire(
+            sample_roi,
+            "/tmp/test",
+            features_config={
+                "createRoadFeatures": False,
+                "createWaterFeatures": False,
+            },
+            surface_config={
+                "fuelMoisture": {"featureMasks": ["road", "water"]},
+            },
+            tree_inventory_config={"featureMasks": ["road", "water"]},
+        )
+
+        surface_config = mock_configure_surface.call_args[0][1]
+        assert surface_config["fuelMoisture"]["featureMasks"] == []
+
+        inventories_instance = mock_inventories.from_domain_id.return_value
+        tree_inv_kwargs = (
+            inventories_instance.create_tree_inventory_from_treemap.call_args.kwargs
+        )
+        assert tree_inv_kwargs["feature_masks"] == []
+
+
 class TestExportRoiFormats:
     """Test the export_roi function with different export formats."""
 
