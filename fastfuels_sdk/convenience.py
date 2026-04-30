@@ -111,6 +111,49 @@ DEFAULT_TREE_INVENTORY_CONFIG = {
 }
 
 
+def _strip_disabled_features(masks: Any, create_road: bool, create_water: bool) -> Any:
+    """Drop "road"/"water" entries from a featureMasks list when their
+    corresponding features are disabled. Non-list values are returned as-is."""
+    if not isinstance(masks, list):
+        return masks
+    return [
+        m
+        for m in masks
+        if not (m == "road" and not create_road)
+        and not (m == "water" and not create_water)
+    ]
+
+
+def _sanitize_feature_masks(
+    surface_config: Dict[str, Any],
+    tree_inventory_config: Dict[str, Any],
+    create_road: bool,
+    create_water: bool,
+) -> None:
+    """Strip references to disabled features from every `featureMasks` list in
+    the surface and tree-inventory configs.
+
+    Mutates the configs in place. The user disabling a feature should never
+    result in a downstream API call that asks the API to mask against a
+    feature that was never created (which causes the export to fail or hang
+    waiting on a non-existent dependency).
+    """
+    if create_road and create_water:
+        return
+
+    for section in ("fuelLoad", "fuelDepth", "fuelMoisture"):
+        sub = surface_config.get(section)
+        if isinstance(sub, dict) and "featureMasks" in sub:
+            sub["featureMasks"] = _strip_disabled_features(
+                sub["featureMasks"], create_road, create_water
+            )
+
+    if "featureMasks" in tree_inventory_config:
+        tree_inventory_config["featureMasks"] = _strip_disabled_features(
+            tree_inventory_config["featureMasks"], create_road, create_water
+        )
+
+
 def _configure_topography_builder(domain_id: str, config: Dict[str, Any]):
     """Configure and build a topography grid based on configuration.
 
@@ -613,6 +656,16 @@ def export_roi(
     merged_features_config = _merge_config(DEFAULT_FEATURES_CONFIG, features_config)
     merged_tree_inventory_config = _merge_config(
         DEFAULT_TREE_INVENTORY_CONFIG, tree_inventory_config
+    )
+
+    # Drop any references to road/water from the surface and tree-inventory
+    # featureMasks when the corresponding feature creation is disabled — the
+    # API can't mask against features that won't exist.
+    _sanitize_feature_masks(
+        merged_surface_config,
+        merged_tree_inventory_config,
+        create_road=merged_features_config.get("createRoadFeatures", True),
+        create_water=merged_features_config.get("createWaterFeatures", True),
     )
 
     # Create a new domain for the ROI
