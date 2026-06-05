@@ -47,10 +47,10 @@ exclude = [
     # Scratch v2 client; promoted to fastfuels_sdk/v2/client_library in Phase 2
     "fastfuels_sdk/client_library_v2",
     # Client regeneration scaffolding — repo-only, not for distribution
-    "fastfuels_sdk/client_library/*.sh",
-    "fastfuels_sdk/client_library/README.md",
-    "fastfuels_sdk/client_library/api_spec.json",
-    "fastfuels_sdk/client_library/openapi-generator-config.yaml",
+    "fastfuels_sdk/v1/client_library/*.sh",
+    "fastfuels_sdk/v1/client_library/README.md",
+    "fastfuels_sdk/v1/client_library/api_spec.json",
+    "fastfuels_sdk/v1/client_library/openapi-generator-config.yaml",
 ]
 
 [tool.hatch.build.targets.wheel]
