@@ -36,7 +36,14 @@ Homepage = "https://github.com/silvxlabs/fastfuels-sdk-python"
 "Bug Tracker" = "https://github.com/silvxlabs/fastfuels-sdk-python/issues"
 
 [dependency-groups]
-dev = ["pytest", "pre-commit", "ipykernel"]
+dev = [
+    "pytest",
+    "pre-commit",
+    "ipykernel",
+    "httpx>=0.23.0,<0.29.0",
+    "attrs>=22.2.0",
+    "python-dateutil>=2.9.0.post0",
+]
 docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocstrings-python"]
 
 [tool.hatch.version]
@@ -44,8 +51,11 @@ source = "vcs"
 
 [tool.hatch.build]
 exclude = [
-    # Scratch v2 client; promoted to fastfuels_sdk/v2/client_library in Phase 2
-    "fastfuels_sdk/client_library_v2",
+    # v2 is under development and not yet distributable: its runtime deps
+    # (httpx, attrs, python-dateutil) live in the dev group until the v2
+    # preview ships. The Phase 2 release swaps this for fine-grained
+    # excludes (v2/*.sh, v2/COMPARISON.md, v2/draft_*.py), mirroring v1's.
+    "fastfuels_sdk/v2",
     # Client regeneration scaffolding — repo-only, not for distribution
     "fastfuels_sdk/v1/client_library/*.sh",
     "fastfuels_sdk/v1/client_library/README.md",
