@@ -57,9 +57,12 @@ fastfuels_sdk/
 
 ## Phase 0: Modernize packaging to pyproject.toml + uv — release **0.20.0** ✅ implemented
 
-> Status: implemented in the working tree (2026-06-05). Latest published release at
+> Status: merged to `main` via PR #174 (2026-06-05). Latest published release at
 > implementation time was **0.19.1** (the plan originally assumed 0.18.2 — stale).
-> Remaining: commit, PR, and cut the 0.20.0 release.
+> At merge time `tests_cron.yml` was deleted entirely (weekly live-API runs
+> dropped). The standalone 0.20.0 release was deferred as unnecessary — the
+> packaging changes ship with the next release (likely Phase 1's 0.21.0, which
+> will be the first live run of the `uv build`/`uv publish` pipeline).
 
 Goal: replace `setup.py` + `requirements/` with a single `pyproject.toml` managed by
 uv, shipped as a packaging-only release **before** any code moves, so packaging
@@ -150,7 +153,7 @@ fallout is never conflated with the restructure.
 
 4. **Update workflows to uv:**
 
-   `tests_main.yml` / `tests_cron.yml`:
+   `tests_main.yml` (`tests_cron.yml` was deleted at merge time):
 
    ```yaml
    steps:
@@ -202,7 +205,14 @@ fallout is never conflated with the restructure.
 
 ---
 
-## Phase 1: Move v1 into `fastfuels_sdk/v1/` — release **0.21.0**
+## Phase 1: Move v1 into `fastfuels_sdk/v1/` — release **0.21.0** ✅ implemented
+
+> Status: implemented 2026-06-05. Wheel verified at exact file parity with 0.19.1
+> (old `fastfuels_sdk/*` contents == new `fastfuels_sdk/v1/*`). Mock-based and
+> keyless tests pass locally; the live-API suite runs in PR CI. Beyond the import
+> sweep, the regeneration script (`generate.sh`) rewrite targets, the mock patch
+> targets in `test_convenience_config.py`, and the pyproject/pre-commit path
+> excludes were updated to the `v1` paths.
 
 Goal: restructure with **zero change to the documented public surface**.
 `from fastfuels_sdk import Domain` keeps working.
@@ -324,8 +334,8 @@ Goal: restructure with **zero change to the documented public surface**.
        # uv run pytest tests/v2
    ```
 
-   Once v2 stabilizes, drop `tests/v1` from `tests_cron.yml` (keep it on PRs) to
-   stop burning weekly live-API resources on frozen code.
+   (The weekly `tests_cron.yml` workflow was removed in Phase 0 — live-API tests
+   now run only on PRs.)
 
 7. **Docs:** add a `v2 (preview)` nav section with its own guides and
    `docs/v2/reference.md` as wrappers land.
@@ -390,7 +400,7 @@ When the v1 API is decommissioned:
 | 1 | `docs/*`, `mkdocs.yml` | move under `docs/v1/`, nav sections, mkdocstrings ids |
 | 2 | `fastfuels_sdk/v2/` | promoted client + new wrappers |
 | 2 | `pyproject.toml` | `uv add httpx attrs python-dateutil` |
-| 2 | `.github/workflows/tests_main.yml`, `tests_cron.yml` | split v1/v2 jobs; later drop v1 from cron |
+| 2 | `.github/workflows/tests_main.yml` | split into v1/v2 jobs |
 | 3 | `fastfuels_sdk/__init__.py` | re-export from `.v2` |
 
 After Phase 0, packaging and workflows need **no further changes** in Phases 1 and 3:

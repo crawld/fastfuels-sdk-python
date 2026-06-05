@@ -1,42 +1,12 @@
-from fastfuels_sdk.domains import Domain, list_domains
-from fastfuels_sdk.inventories import Inventories, TreeInventory
-from fastfuels_sdk.features import Features, RoadFeature, WaterFeature
-from fastfuels_sdk.client_library.models import FeatureDataResponse
-from fastfuels_sdk.grids import (
-    Grids,
-    SurfaceGrid,
-    SurfaceGridBuilder,
-    TreeGrid,
-    TreeGridBuilder,
-    TopographyGrid,
-    TopographyGridBuilder,
-    FeatureGrid,
-)
-from fastfuels_sdk.exports import Export
-from fastfuels_sdk.convenience import export_roi, export_roi_to_quicfire
-from fastfuels_sdk.pointclouds import PointClouds, AlsPointCloud
+"""
+FastFuels SDK.
 
+The top-level namespace re-exports the default API version (currently v1).
+Import from a versioned subpackage to pin an API version explicitly:
 
-__all__ = [
-    "Domain",
-    "list_domains",
-    "Inventories",
-    "TreeInventory",
-    "Features",
-    "RoadFeature",
-    "WaterFeature",
-    "FeatureDataResponse",
-    "Grids",
-    "SurfaceGrid",
-    "SurfaceGridBuilder",
-    "TreeGrid",
-    "TreeGridBuilder",
-    "TopographyGrid",
-    "TopographyGridBuilder",
-    "FeatureGrid",
-    "Export",
-    "export_roi",
-    "export_roi_to_quicfire",
-    "PointClouds",
-    "AlsPointCloud",
-]
+    from fastfuels_sdk.v1 import Domain   # explicit v1
+    from fastfuels_sdk import Domain      # default (v1 until 2.0.0)
+"""
+
+from fastfuels_sdk.v1 import *  # noqa: F401,F403
+from fastfuels_sdk.v1 import __all__  # noqa: F401

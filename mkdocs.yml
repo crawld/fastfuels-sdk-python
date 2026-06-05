@@ -8,18 +8,18 @@ theme:
 
 nav:
   - Home: index.md
-  - How-To Guides:
-    - Authentication: guides/authentication.md
-    - Domains: guides/domains.md
-    - Inventories: guides/inventories.md
-    - Point Clouds: guides/point_clouds.md
-    - Features: guides/features.md
-    - Grids: guides/grids.md
-  - Tutorials:
-    - Export to QUIC-Fire: tutorials/export_to_quicfire.md
-    - ALS Point Cloud: tutorials/point_cloud_example.md
-
-  - Reference: reference.md
+  - v1 (current):
+    - How-To Guides:
+      - Authentication: v1/guides/authentication.md
+      - Domains: v1/guides/domains.md
+      - Inventories: v1/guides/inventories.md
+      - Point Clouds: v1/guides/point_clouds.md
+      - Features: v1/guides/features.md
+      - Grids: v1/guides/grids.md
+    - Tutorials:
+      - Export to QUIC-Fire: v1/tutorials/export_to_quicfire.md
+      - ALS Point Cloud: v1/tutorials/point_cloud_example.md
+    - Reference: v1/reference.md
 
 plugins:
   - search
