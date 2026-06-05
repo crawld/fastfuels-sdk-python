@@ -1,0 +1,57 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fastfuels-sdk"
+description = "3D Fuels for Next Generation Fire Models"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dynamic = ["version"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "geopandas",
+    "numpy",
+    "pandas",
+    "pydantic>=2",
+    "requests",
+    "scipy",
+    "urllib3>=2.1.0",
+    "zarr",
+]
+
+[project.urls]
+Homepage = "https://github.com/silvxlabs/fastfuels-sdk-python"
+"Bug Tracker" = "https://github.com/silvxlabs/fastfuels-sdk-python/issues"
+
+[dependency-groups]
+dev = ["pytest", "pre-commit", "ipykernel"]
+docs = ["mkdocs", "mkdocs-material", "mkdocstrings", "mkdocstrings-python"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build]
+exclude = [
+    # Scratch v2 client; promoted to fastfuels_sdk/v2/client_library in Phase 2
+    "fastfuels_sdk/client_library_v2",
+    # Client regeneration scaffolding — repo-only, not for distribution
+    "fastfuels_sdk/client_library/*.sh",
+    "fastfuels_sdk/client_library/README.md",
+    "fastfuels_sdk/client_library/api_spec.json",
+    "fastfuels_sdk/client_library/openapi-generator-config.yaml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["fastfuels_sdk"]

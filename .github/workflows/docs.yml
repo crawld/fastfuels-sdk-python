@@ -9,9 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.x
-
-      - run: pip install mkdocs mkdocstrings mkdocstrings-python mkdocs-material
-      - run: mkdocs gh-deploy --force --clean --verbose
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Install docs dependencies
+        run: uv sync --group docs
+      - run: uv run mkdocs gh-deploy --force --clean --verbose
