@@ -147,3 +147,4 @@ tests/tmp/
 
 #Code workspace
 *.code-workspace
+.run/
