@@ -1,5 +1,3 @@
-from grids.test_feature_grid import feature_grid_fixture
-
 # Tutorial: Create and Export QUIC-Fire Inputs with FastFuels SDK
 
 In this tutorial, you'll learn how to use the FastFuels SDK to create QUIC-Fire input files for a region of interest. We'll walk through each step of the process, from authentication to final export.
