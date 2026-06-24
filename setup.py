@@ -1,20 +1,9 @@
-import requests
 from setuptools import find_packages, setup
 
 
 def read_file(fname):
     with open(fname, encoding="utf-8") as fd:
         return fd.read()
-
-
-def get_version():
-    """Get the version number."""
-    url = "https://api.github.com/repos/silvxlabs/fastfuels-sdk-python/releases/latest"
-    response = requests.get(url)
-    response.raise_for_status()
-    version = response.json()["tag_name"]
-    return version[1:]  # Remove the leading "v" from the version number
-
 
 def get_requirements(fname):
     with open(fname, encoding="utf-8") as fd:
@@ -25,7 +14,7 @@ def get_requirements(fname):
 NAME = "fastfuels-sdk"
 DESCRIPTION = "3D Fuels for Next Generation Fire Models"
 LONG_DESCRIPTION = read_file("README.md")
-VERSION = get_version()
+VERSION = "0.15.0"
 LICENSE = "MIT"
 URL = "https://github.com/silvxlabs/fastfuels-sdk-python"
 PROJECT_URLS = {"Bug Tracker": f"{URL}/issues"}
